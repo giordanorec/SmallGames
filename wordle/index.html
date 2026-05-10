@@ -1,0 +1,1020 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#121213" />
+<title>Palavrim — adivinhe a palavra</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;700;800&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #121213;
+    --bg-elev: #1a1a1c;
+    --text: #ffffff;
+    --muted: #818384;
+    --tile-empty-border: #3a3a3c;
+    --tile-filled-border: #565758;
+    --key-bg: #818384;
+    --key-text: #ffffff;
+    --key-bg-disabled: #3a3a3c;
+    --correct: #538d4e;
+    --present: #b59f3b;
+    --absent: #3a3a3c;
+    --header-border: #3a3a3c;
+    --modal-bg: #1a1a1c;
+    --modal-border: #3a3a3c;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    height: 100%;
+    overflow: hidden;
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    user-select: none;
+  }
+
+  #game {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-width: 500px;
+    margin: 0 auto;
+  }
+
+  header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--header-border);
+    height: 52px;
+    flex-shrink: 0;
+  }
+
+  .icon-btn {
+    background: none;
+    border: none;
+    color: var(--text);
+    cursor: pointer;
+    padding: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 4px;
+    transition: background 0.15s;
+  }
+
+  .icon-btn:hover { background: rgba(255,255,255,0.08); }
+
+  .icon-btn svg { width: 22px; height: 22px; }
+
+  .title {
+    font-weight: 800;
+    font-size: 28px;
+    letter-spacing: 0.06em;
+    text-align: center;
+    flex: 1;
+    background: linear-gradient(135deg, #fff 0%, #b3ffd1 60%, #6ee7a3 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  .header-actions { display: flex; gap: 4px; }
+
+  main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
+    padding: 12px 8px 0;
+  }
+
+  .board-wrapper {
+    display: flex;
+    flex: 1;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+  }
+
+  .board {
+    display: grid;
+    grid-template-rows: repeat(6, 1fr);
+    gap: 5px;
+    padding: 6px;
+    width: 100%;
+    max-width: 350px;
+    aspect-ratio: 5 / 6;
+  }
+
+  .row {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 5px;
+  }
+
+  .row.shake { animation: shake 0.5s; }
+
+  .row.win .tile { animation: bounce 0.6s ease-in-out forwards; }
+  .row.win .tile:nth-child(1) { animation-delay: 0s; }
+  .row.win .tile:nth-child(2) { animation-delay: 0.1s; }
+  .row.win .tile:nth-child(3) { animation-delay: 0.2s; }
+  .row.win .tile:nth-child(4) { animation-delay: 0.3s; }
+  .row.win .tile:nth-child(5) { animation-delay: 0.4s; }
+
+  .tile {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: clamp(24px, 7vw, 32px);
+    font-weight: 700;
+    text-transform: uppercase;
+    border: 2px solid var(--tile-empty-border);
+    color: var(--text);
+    transition: transform 0.15s, border-color 0.15s;
+    aspect-ratio: 1;
+    line-height: 1;
+  }
+
+  .tile.filled {
+    border-color: var(--tile-filled-border);
+    animation: pop 0.1s ease-in-out;
+  }
+
+  .tile.flip {
+    animation: flip 0.6s ease forwards;
+  }
+
+  .tile.flip:nth-child(1) { animation-delay: 0s; }
+  .tile.flip:nth-child(2) { animation-delay: 0.3s; }
+  .tile.flip:nth-child(3) { animation-delay: 0.6s; }
+  .tile.flip:nth-child(4) { animation-delay: 0.9s; }
+  .tile.flip:nth-child(5) { animation-delay: 1.2s; }
+
+  .tile.correct { background: var(--correct); border-color: var(--correct); color: white; }
+  .tile.present { background: var(--present); border-color: var(--present); color: white; }
+  .tile.absent  { background: var(--absent);  border-color: var(--absent);  color: white; }
+
+  @keyframes pop {
+    0%   { transform: scale(0.85); }
+    100% { transform: scale(1); }
+  }
+
+  @keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-6px); }
+    80% { transform: translateX(6px); }
+  }
+
+  @keyframes flip {
+    0%   { transform: rotateX(0); background: transparent; border-color: var(--tile-filled-border); }
+    49%  { transform: rotateX(90deg); background: transparent; border-color: var(--tile-filled-border); }
+    50%  { transform: rotateX(90deg); }
+    100% { transform: rotateX(0); }
+  }
+
+  @keyframes bounce {
+    0%, 20% { transform: translateY(0); }
+    40% { transform: translateY(-22px); }
+    50% { transform: translateY(4px); }
+    60% { transform: translateY(-8px); }
+    80% { transform: translateY(2px); }
+    100% { transform: translateY(0); }
+  }
+
+  /* Keyboard */
+  .keyboard {
+    flex-shrink: 0;
+    padding: 6px 4px 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .keyboard-row {
+    display: flex;
+    justify-content: center;
+    gap: 5px;
+  }
+
+  .key {
+    flex: 1;
+    height: 56px;
+    max-width: 44px;
+    background: var(--key-bg);
+    color: var(--key-text);
+    border: none;
+    border-radius: 4px;
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 700;
+    text-transform: uppercase;
+    cursor: pointer;
+    transition: transform 0.05s, background 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .key:active { transform: scale(0.92); }
+
+  .key.wide {
+    flex: 1.5;
+    max-width: 64px;
+    font-size: 11px;
+    letter-spacing: 0.04em;
+  }
+
+  .key svg { width: 18px; height: 18px; fill: currentColor; }
+
+  .key.correct { background: var(--correct); color: white; }
+  .key.present { background: var(--present); color: white; }
+  .key.absent  { background: var(--absent);  color: var(--muted); }
+
+  /* Toast */
+  .toast-area {
+    position: fixed;
+    top: 70px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    z-index: 100;
+    pointer-events: none;
+  }
+
+  .toast {
+    background: white;
+    color: black;
+    padding: 12px 20px;
+    border-radius: 4px;
+    font-weight: 700;
+    font-size: 14px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+    animation: toast-in 0.15s ease-out;
+  }
+
+  .toast.fadeout { animation: toast-out 0.3s ease-out forwards; }
+
+  @keyframes toast-in {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  @keyframes toast-out {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+  }
+
+  /* Modal */
+  .modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 200;
+    padding: 16px;
+    animation: fade-in 0.2s ease-out;
+  }
+
+  .modal-backdrop.open { display: flex; }
+
+  @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+
+  .modal {
+    background: var(--modal-bg);
+    border: 1px solid var(--modal-border);
+    border-radius: 8px;
+    width: 100%;
+    max-width: 420px;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 24px 20px;
+    position: relative;
+    animation: slide-up 0.25s ease-out;
+  }
+
+  @keyframes slide-up {
+    from { transform: translateY(12px); opacity: 0; }
+    to   { transform: translateY(0); opacity: 1; }
+  }
+
+  .modal h2 {
+    font-size: 20px;
+    margin-bottom: 16px;
+    text-align: center;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .modal h3 {
+    font-size: 14px;
+    margin: 18px 0 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  .modal p { font-size: 14px; line-height: 1.55; margin-bottom: 10px; color: #d7dadc; }
+
+  .modal-close {
+    position: absolute;
+    top: 14px;
+    right: 14px;
+    background: none;
+    border: none;
+    color: var(--text);
+    cursor: pointer;
+    padding: 4px;
+    display: flex;
+    align-items: center;
+    border-radius: 4px;
+  }
+  .modal-close:hover { background: rgba(255,255,255,0.08); }
+  .modal-close svg { width: 20px; height: 20px; }
+
+  /* How to play examples */
+  .example {
+    margin: 8px 0 14px;
+  }
+
+  .example-row {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 4px;
+  }
+
+  .example-tile {
+    width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
+    border: 2px solid var(--tile-empty-border);
+    font-weight: 700; text-transform: uppercase;
+    font-size: 18px;
+  }
+  .example-tile.correct { background: var(--correct); border-color: var(--correct); }
+  .example-tile.present { background: var(--present); border-color: var(--present); }
+  .example-tile.absent  { background: var(--absent);  border-color: var(--absent);  }
+
+  .example p { font-size: 13px; }
+  .example b { font-weight: 800; }
+
+  /* Stats */
+  .stats-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+    margin-bottom: 18px;
+  }
+
+  .stat {
+    text-align: center;
+  }
+
+  .stat-value {
+    font-size: 30px;
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .stat-label {
+    font-size: 11px;
+    color: var(--muted);
+    margin-top: 4px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+  }
+
+  .dist {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin-bottom: 18px;
+  }
+
+  .dist-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  .dist-num { width: 12px; text-align: right; }
+
+  .dist-bar {
+    background: var(--absent);
+    height: 22px;
+    padding: 0 8px;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    color: white;
+    font-weight: 700;
+    font-size: 13px;
+    min-width: 24px;
+    transition: width 0.4s ease-out;
+  }
+
+  .dist-bar.highlight { background: var(--correct); }
+
+  .actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 16px;
+  }
+
+  .btn {
+    flex: 1;
+    background: var(--correct);
+    color: white;
+    border: none;
+    padding: 14px;
+    border-radius: 6px;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 14px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    transition: filter 0.15s;
+  }
+
+  .btn:hover { filter: brightness(1.1); }
+
+  .btn.secondary {
+    background: var(--absent);
+  }
+
+  .answer-line {
+    text-align: center;
+    margin: 8px 0 14px;
+    font-size: 13px;
+    color: var(--muted);
+  }
+  .answer-line b {
+    color: white;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+
+  /* Back-to-platform link */
+  .back-link {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 4px 8px;
+    border: 1px solid var(--header-border);
+    border-radius: 999px;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .back-link:hover { color: var(--text); border-color: var(--tile-filled-border); }
+
+  @media (max-width: 360px) {
+    .key { font-size: 12px; height: 48px; }
+    .key.wide { font-size: 10px; }
+  }
+</style>
+</head>
+<body>
+<div id="game">
+  <header>
+    <a class="back-link" href="/" id="backLink" title="Voltar">←</a>
+    <div class="title">PALAVRIM</div>
+    <div class="header-actions">
+      <button class="icon-btn" id="howBtn" title="Como jogar" aria-label="Como jogar">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+      </button>
+      <button class="icon-btn" id="statsBtn" title="Estatísticas" aria-label="Estatísticas">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <main>
+    <div class="board-wrapper">
+      <div class="board" id="board"></div>
+    </div>
+
+    <div class="keyboard" id="keyboard"></div>
+  </main>
+</div>
+
+<div class="toast-area" id="toastArea"></div>
+
+<!-- Modal: How to play -->
+<div class="modal-backdrop" id="howModal" role="dialog" aria-modal="true">
+  <div class="modal">
+    <button class="modal-close" data-close>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h2>Como jogar</h2>
+    <p>Adivinhe o <b>PALAVRIM</b> em 6 tentativas.</p>
+    <p>Cada tentativa precisa ser uma palavra válida de 5 letras.</p>
+    <p>A cor das peças muda mostrando o quão perto você ficou da resposta.</p>
+
+    <h3>Exemplos</h3>
+
+    <div class="example">
+      <div class="example-row">
+        <div class="example-tile correct">L</div>
+        <div class="example-tile">i</div>
+        <div class="example-tile">v</div>
+        <div class="example-tile">r</div>
+        <div class="example-tile">e</div>
+      </div>
+      <p>A letra <b>L</b> está na palavra e na posição correta.</p>
+    </div>
+
+    <div class="example">
+      <div class="example-row">
+        <div class="example-tile">v</div>
+        <div class="example-tile present">I</div>
+        <div class="example-tile">o</div>
+        <div class="example-tile">l</div>
+        <div class="example-tile">a</div>
+      </div>
+      <p>A letra <b>I</b> está na palavra, mas em outra posição.</p>
+    </div>
+
+    <div class="example">
+      <div class="example-row">
+        <div class="example-tile">p</div>
+        <div class="example-tile">a</div>
+        <div class="example-tile">l</div>
+        <div class="example-tile absent">M</div>
+        <div class="example-tile">a</div>
+      </div>
+      <p>A letra <b>M</b> não está na palavra.</p>
+    </div>
+
+    <p style="margin-top:12px; font-size:12px; color:var(--muted);">As palavras-resposta nunca usam acento ou cedilha — digite tudo sem acento.</p>
+  </div>
+</div>
+
+<!-- Modal: Stats -->
+<div class="modal-backdrop" id="statsModal" role="dialog" aria-modal="true">
+  <div class="modal">
+    <button class="modal-close" data-close>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+    <h2>Estatísticas</h2>
+    <div class="stats-grid">
+      <div class="stat"><div class="stat-value" id="stPlayed">0</div><div class="stat-label">Jogos</div></div>
+      <div class="stat"><div class="stat-value" id="stWinPct">0</div><div class="stat-label">% vitórias</div></div>
+      <div class="stat"><div class="stat-value" id="stStreak">0</div><div class="stat-label">Sequência</div></div>
+      <div class="stat"><div class="stat-value" id="stBest">0</div><div class="stat-label">Melhor</div></div>
+    </div>
+    <h3>Distribuição</h3>
+    <div class="dist" id="distribution"></div>
+    <div class="answer-line" id="answerLine" style="display:none;"></div>
+    <div class="actions">
+      <button class="btn secondary" id="newGameBtn">Nova palavra</button>
+      <button class="btn" id="shareBtn">Compartilhar</button>
+    </div>
+  </div>
+</div>
+
+<script src="words.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  const WORD_LENGTH = 5;
+  const MAX_GUESSES = 6;
+  const STORAGE_KEY = 'palavrim:v1';
+
+  // ---------- State ----------
+  const state = {
+    answer: '',
+    guesses: [],   // array of strings
+    current: '',
+    status: 'playing', // 'playing' | 'won' | 'lost'
+    keyState: {},  // letter -> 'correct'|'present'|'absent'
+    locked: false, // true while flipping
+  };
+
+  let stats = loadStats();
+
+  // ---------- Storage ----------
+  function loadStats() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) throw 0;
+      const s = JSON.parse(raw);
+      return Object.assign(defaultStats(), s);
+    } catch (_) {
+      return defaultStats();
+    }
+  }
+  function defaultStats() {
+    return {
+      played: 0, won: 0, currentStreak: 0, bestStreak: 0,
+      distribution: [0, 0, 0, 0, 0, 0],
+      lastWonGuesses: null,
+      lastAnswer: null,
+    };
+  }
+  function saveStats() {
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(stats)); } catch (_) {}
+  }
+
+  // ---------- Word selection ----------
+  function pickAnswer() {
+    if (!VALID_ANSWERS || VALID_ANSWERS.length === 0) return 'amigo';
+    const idx = Math.floor(Math.random() * VALID_ANSWERS.length);
+    return VALID_ANSWERS[idx];
+  }
+
+  function isValidGuess(word) {
+    return VALID_GUESSES.indexOf(word) !== -1 || VALID_ANSWERS.indexOf(word) !== -1;
+  }
+
+  // ---------- Rendering ----------
+  const board = document.getElementById('board');
+  const keyboard = document.getElementById('keyboard');
+
+  function buildBoard() {
+    board.innerHTML = '';
+    for (let r = 0; r < MAX_GUESSES; r++) {
+      const row = document.createElement('div');
+      row.className = 'row';
+      row.dataset.row = String(r);
+      for (let c = 0; c < WORD_LENGTH; c++) {
+        const tile = document.createElement('div');
+        tile.className = 'tile';
+        tile.dataset.col = String(c);
+        row.appendChild(tile);
+      }
+      board.appendChild(row);
+    }
+  }
+
+  function buildKeyboard() {
+    const rows = [
+      'qwertyuiop'.split(''),
+      'asdfghjkl'.split(''),
+      ['enter', ...'zxcvbnm'.split(''), 'back']
+    ];
+    keyboard.innerHTML = '';
+    rows.forEach(letters => {
+      const rowEl = document.createElement('div');
+      rowEl.className = 'keyboard-row';
+      letters.forEach(l => {
+        const k = document.createElement('button');
+        k.className = 'key';
+        if (l === 'enter') {
+          k.classList.add('wide');
+          k.textContent = 'Enter';
+          k.dataset.key = 'Enter';
+        } else if (l === 'back') {
+          k.classList.add('wide');
+          k.innerHTML = '<svg viewBox="0 0 24 24"><path d="M22 3H7c-.69 0-1.23.35-1.59.88L0 12l5.41 8.11c.36.53.9.89 1.59.89h15c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-3 12.59L17.59 17 14 13.41 10.41 17 9 15.59 12.59 12 9 8.41 10.41 7 14 10.59 17.59 7 19 8.41 15.41 12 19 15.59z"/></svg>';
+          k.dataset.key = 'Backspace';
+        } else {
+          k.textContent = l;
+          k.dataset.key = l;
+        }
+        rowEl.appendChild(k);
+      });
+      keyboard.appendChild(rowEl);
+    });
+  }
+
+  function renderCurrent() {
+    const row = board.children[state.guesses.length];
+    if (!row) return;
+    for (let i = 0; i < WORD_LENGTH; i++) {
+      const tile = row.children[i];
+      const ch = state.current[i] || '';
+      tile.textContent = ch;
+      tile.classList.toggle('filled', !!ch);
+    }
+  }
+
+  function renderGuess(rowIndex, guess, evaluation) {
+    const row = board.children[rowIndex];
+    for (let i = 0; i < WORD_LENGTH; i++) {
+      const tile = row.children[i];
+      tile.textContent = guess[i];
+      tile.classList.add('filled', 'flip');
+      setTimeout(() => {
+        tile.classList.add(evaluation[i]);
+      }, i * 300 + 250);
+    }
+  }
+
+  function renderKeyboard() {
+    const buttons = keyboard.querySelectorAll('.key');
+    buttons.forEach(b => {
+      const key = b.dataset.key;
+      if (key && key.length === 1 && state.keyState[key]) {
+        b.classList.remove('correct', 'present', 'absent');
+        b.classList.add(state.keyState[key]);
+      }
+    });
+  }
+
+  // ---------- Toast ----------
+  const toastArea = document.getElementById('toastArea');
+  function toast(msg, ms) {
+    const t = document.createElement('div');
+    t.className = 'toast';
+    t.textContent = msg;
+    toastArea.appendChild(t);
+    setTimeout(() => {
+      t.classList.add('fadeout');
+      setTimeout(() => t.remove(), 300);
+    }, ms || 1400);
+  }
+
+  // ---------- Evaluation ----------
+  // Standard Wordle marking: correct > present, with letter-count constraints
+  function evaluate(guess, answer) {
+    const result = new Array(WORD_LENGTH).fill('absent');
+    const answerArr = answer.split('');
+    // First pass: correct
+    for (let i = 0; i < WORD_LENGTH; i++) {
+      if (guess[i] === answerArr[i]) {
+        result[i] = 'correct';
+        answerArr[i] = null;
+      }
+    }
+    // Second pass: present
+    for (let i = 0; i < WORD_LENGTH; i++) {
+      if (result[i] === 'correct') continue;
+      const idx = answerArr.indexOf(guess[i]);
+      if (idx !== -1) {
+        result[i] = 'present';
+        answerArr[idx] = null;
+      }
+    }
+    return result;
+  }
+
+  function rankOrder(s) {
+    if (s === 'correct') return 3;
+    if (s === 'present') return 2;
+    if (s === 'absent')  return 1;
+    return 0;
+  }
+
+  function updateKeyStates(guess, evaluation) {
+    for (let i = 0; i < guess.length; i++) {
+      const ch = guess[i];
+      const next = evaluation[i];
+      const cur = state.keyState[ch];
+      if (!cur || rankOrder(next) > rankOrder(cur)) {
+        state.keyState[ch] = next;
+      }
+    }
+  }
+
+  // ---------- Input handling ----------
+  function handleKey(rawKey) {
+    if (state.status !== 'playing' || state.locked) return;
+    const key = rawKey.toLowerCase();
+
+    if (key === 'enter') return submit();
+    if (key === 'backspace' || key === 'back') {
+      state.current = state.current.slice(0, -1);
+      renderCurrent();
+      return;
+    }
+    if (/^[a-z]$/.test(key) && state.current.length < WORD_LENGTH) {
+      state.current += key;
+      renderCurrent();
+    }
+  }
+
+  function shakeCurrentRow() {
+    const row = board.children[state.guesses.length];
+    if (!row) return;
+    row.classList.remove('shake');
+    void row.offsetWidth;
+    row.classList.add('shake');
+  }
+
+  function submit() {
+    if (state.current.length !== WORD_LENGTH) {
+      toast('Letras insuficientes');
+      shakeCurrentRow();
+      return;
+    }
+    if (!isValidGuess(state.current)) {
+      toast('Palavra não está na lista');
+      shakeCurrentRow();
+      return;
+    }
+
+    const guess = state.current;
+    const evaluation = evaluate(guess, state.answer);
+    const rowIndex = state.guesses.length;
+
+    state.guesses.push(guess);
+    state.current = '';
+    state.locked = true;
+
+    renderGuess(rowIndex, guess, evaluation);
+
+    const flipDuration = WORD_LENGTH * 300 + 600;
+    setTimeout(() => {
+      updateKeyStates(guess, evaluation);
+      renderKeyboard();
+      state.locked = false;
+
+      const isWin = evaluation.every(e => e === 'correct');
+      if (isWin) {
+        state.status = 'won';
+        finishGame(true, rowIndex);
+      } else if (state.guesses.length === MAX_GUESSES) {
+        state.status = 'lost';
+        finishGame(false, rowIndex);
+      }
+    }, flipDuration);
+  }
+
+  function finishGame(won, rowIndex) {
+    stats.played += 1;
+    if (won) {
+      stats.won += 1;
+      stats.currentStreak += 1;
+      if (stats.currentStreak > stats.bestStreak) stats.bestStreak = stats.currentStreak;
+      stats.distribution[rowIndex] = (stats.distribution[rowIndex] || 0) + 1;
+      stats.lastWonGuesses = rowIndex + 1;
+    } else {
+      stats.currentStreak = 0;
+      stats.lastWonGuesses = null;
+    }
+    stats.lastAnswer = state.answer;
+    saveStats();
+
+    if (won) {
+      const row = board.children[rowIndex];
+      setTimeout(() => row.classList.add('win'), 100);
+      const messages = ['Genial!','Magnífico!','Impressionante!','Esplêndido!','Muito bom!','Por pouco!'];
+      toast(messages[Math.min(rowIndex, messages.length - 1)]);
+    } else {
+      toast(state.answer.toUpperCase(), 3000);
+    }
+
+    setTimeout(() => openStats(true), won ? 2200 : 2500);
+  }
+
+  // ---------- Modals ----------
+  function openModal(id) {
+    document.getElementById(id).classList.add('open');
+  }
+  function closeModal(id) {
+    document.getElementById(id).classList.remove('open');
+  }
+  function closeAllModals() {
+    document.querySelectorAll('.modal-backdrop').forEach(m => m.classList.remove('open'));
+  }
+
+  // ---------- Stats UI ----------
+  function openStats(showFinalAnswer) {
+    document.getElementById('stPlayed').textContent = String(stats.played);
+    const winPct = stats.played ? Math.round((stats.won / stats.played) * 100) : 0;
+    document.getElementById('stWinPct').textContent = String(winPct);
+    document.getElementById('stStreak').textContent = String(stats.currentStreak);
+    document.getElementById('stBest').textContent = String(stats.bestStreak);
+
+    const dist = document.getElementById('distribution');
+    dist.innerHTML = '';
+    const max = Math.max(1, ...stats.distribution);
+    for (let i = 0; i < MAX_GUESSES; i++) {
+      const row = document.createElement('div');
+      row.className = 'dist-row';
+      const num = document.createElement('div');
+      num.className = 'dist-num';
+      num.textContent = String(i + 1);
+      const bar = document.createElement('div');
+      bar.className = 'dist-bar';
+      const v = stats.distribution[i] || 0;
+      bar.style.width = ((v / max) * 100).toFixed(1) + '%';
+      bar.textContent = String(v);
+      if (state.status === 'won' && state.guesses.length === i + 1) bar.classList.add('highlight');
+      row.appendChild(num);
+      row.appendChild(bar);
+      dist.appendChild(row);
+    }
+
+    const answerLine = document.getElementById('answerLine');
+    if (showFinalAnswer && state.status !== 'playing') {
+      answerLine.style.display = 'block';
+      answerLine.innerHTML = state.status === 'won'
+        ? 'Boa! A palavra era <b>' + state.answer + '</b>'
+        : 'A palavra era <b>' + state.answer + '</b>';
+    } else {
+      answerLine.style.display = 'none';
+    }
+
+    openModal('statsModal');
+  }
+
+  function buildShareText() {
+    const header = 'Palavrim ' + (state.status === 'won' ? state.guesses.length : 'X') + '/' + MAX_GUESSES;
+    const lines = state.guesses.map(g => {
+      return evaluate(g, state.answer).map(e => {
+        if (e === 'correct') return '🟩';
+        if (e === 'present') return '🟨';
+        return '⬛';
+      }).join('');
+    });
+    return header + '\n\n' + lines.join('\n');
+  }
+
+  async function shareResult() {
+    const text = buildShareText();
+    try {
+      if (navigator.share) {
+        await navigator.share({ text });
+        return;
+      }
+    } catch (_) { /* fallthrough */ }
+    try {
+      await navigator.clipboard.writeText(text);
+      toast('Resultado copiado!');
+    } catch (_) {
+      toast('Não foi possível compartilhar');
+    }
+  }
+
+  // ---------- Init ----------
+  function newGame() {
+    state.answer = pickAnswer();
+    state.guesses = [];
+    state.current = '';
+    state.status = 'playing';
+    state.keyState = {};
+    state.locked = false;
+    buildBoard();
+    renderKeyboard();
+  }
+
+  function bindEvents() {
+    document.addEventListener('keydown', (e) => {
+      if (document.querySelector('.modal-backdrop.open')) {
+        if (e.key === 'Escape') closeAllModals();
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      handleKey(e.key);
+    });
+
+    keyboard.addEventListener('click', (e) => {
+      const t = e.target.closest('.key');
+      if (!t) return;
+      handleKey(t.dataset.key);
+    });
+
+    document.getElementById('howBtn').addEventListener('click', () => openModal('howModal'));
+    document.getElementById('statsBtn').addEventListener('click', () => openStats(state.status !== 'playing'));
+
+    document.querySelectorAll('[data-close]').forEach(b =>
+      b.addEventListener('click', closeAllModals)
+    );
+    document.querySelectorAll('.modal-backdrop').forEach(b =>
+      b.addEventListener('click', (e) => { if (e.target === b) closeAllModals(); })
+    );
+
+    document.getElementById('newGameBtn').addEventListener('click', () => {
+      closeAllModals();
+      setTimeout(newGame, 200);
+    });
+    document.getElementById('shareBtn').addEventListener('click', shareResult);
+
+    // The back link goes home — but if the player came directly, fall back to "/" of current host.
+    // We leave href="/" so on the platform deployment it goes to the platform; on the
+    // standalone deployment it just reloads. That's fine.
+  }
+
+  buildBoard();
+  buildKeyboard();
+  newGame();
+  bindEvents();
+
+  // First-time intro
+  if (stats.played === 0) {
+    setTimeout(() => openModal('howModal'), 200);
+  }
+})();
+</script>
+</body>
+</html>
